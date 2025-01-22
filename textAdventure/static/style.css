@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+* {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: black;
+    color: #33ff33; 
+    font-size: 16px;
+    text-shadow: 0 0 5px #00ff00;
+}
+
+.text {
+    overflow: hidden;
+    white-space: nowrap; /* Ensures text stays in a single line during typing */
+    width: 0;
+    animation: typing 2s steps(40) forwards;
+    display: inline-block; /* Keeps text inline while typing */
+}
+
+.container {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    width: 100%;
+}
+
+@keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+}

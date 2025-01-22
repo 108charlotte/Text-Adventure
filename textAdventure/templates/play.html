@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+{% for line in story %}
+<span class="container">
+    <p>{{ line|safe }}</p>
+</span>
+{% endfor %}
+
+<script>
+    document.addEventListener('keydown', function(event) {
+        if (event.key === "Enter") {
+            fetch('/play', {
+                method: 'POST', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error); 
+            })
+        } else if (event.key === "m") {
+            fetch('/display_map', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        } else if (event.key === "i") {
+            fetch('/display_inventory', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        } else if (event.key === "h") {
+            fetch('/help', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        } else if (event.key === "g") {
+            fetch('/grab', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        } else if (event.key === "w") {
+            fetch('/north', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        } else if (event.key === "a") {
+            fetch('/west', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        } else if (event.key === "s") {
+            fetch('/south', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        } else if (event.key === "d") {
+            fetch('/east', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        } else if (event.key === "u") {
+            fetch('/use', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        }
+    })
+</script>
+
+{% endblock %}
