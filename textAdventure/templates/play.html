@@ -9,16 +9,16 @@
 {% endfor %}
 
 <script>
+    function scrollToBottom() {
+        window.scrollTo(0, document.body.scrollHeight); 
+    }
+
+    window.onload = function() {
+        setTimeout(scrollToBottom, 100); 
+    }; 
+
     document.addEventListener('keydown', function(event) {
-        if (event.key === "Enter") {
-            fetch('/play', {
-                method: 'POST', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error); 
-            })
-        } else if (event.key === "m") {
+        if (event.key === "m") {
             fetch('/display_map', {
                 method: 'GET', 
             }).then(function(response) {
@@ -84,6 +84,22 @@
             })
         } else if (event.key === "u") {
             fetch('/use', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        } else if (event.key === "n") {
+            fetch('/inspect', {
+                method: 'GET', 
+            }).then(function(response) {
+                location.reload(); 
+            }).catch(function(error) {
+                console.log('Error:', error)
+            })
+        } else if (event.key === "c") {
+            fetch('/clear', {
                 method: 'GET', 
             }).then(function(response) {
                 location.reload(); 
