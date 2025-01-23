@@ -3,10 +3,12 @@ from flask import Flask, render_template, redirect, request
 app = Flask(__name__, static_folder='static')
 
 class Item: 
-    def __init__(self, name, description, restricted, unlocks=None): 
+    def __init__(self, name, description, restricted, action_description=None, revealed_text=None, unlocks=None): 
         self.name = name
         self.description = description
         self.restricted = restricted
+        self.revealed_text = revealed_text
+        self.action_description = action_description
         self.unlocks = unlocks if unlocks else []
     
     def __repr__(self): 
@@ -24,13 +26,13 @@ class MapLocation:
         return f"{self.concealed}, {self.revealed}"
 
 # create items
-rose = Item(name="Ageless Rose", description="A beautiful rose. Feels as though it will never wilt, no matter how long it is stuffed into your pocket", restricted=True)
-note = Item(name="Mysterious Note", description="You are amazing <3 always be you, even when things get stressful! -charlotte (creator)", restricted=True)
-key = Item(name="Rusted Key", description="An ancient, ornate key...maybe it can be used to unlock something?", restricted=False, unlocks=[rose, note])
+rose = Item(name="Ageless Rose", description="A beautiful rose. Feels as though it will never wilt, no matter how long it is stuffed into your pocket", revealed_text="After the gate slowly creaks open, you are able to make out a vase resting atop the pedestal, and within it is a single rose. ", restricted=True)
+note = Item(name="Mysterious Note", description="You are amazing <3 always be you, even when things get stressful! -charlotte (creator)", revealed_text="Beneath the vase, there appears to be a short note addressed to you. ", restricted=True)
+key = Item(name="Rusted Key", description="An ancient, ornate key...maybe it can be used to unlock something?", action_description="unlock the garden gate. The pedestal stands before you, atop it the rose and the note", revealed_text="After carefully picking it up and brushing off a substantial amount of dirt, you are able to make out the outline of a rusted key", restricted=False, unlocks=[rose, note])
 
 # create rooms
 garden_path = MapLocation(concealed="&nbsp;", revealed="&nbsp;", description="You see in front of you a mysterious wandering garden pathway lined with all sorts of plants and flowers. ", item_description="When you look down at the mossy pathway, you can only barely make out the edges of an old, rusted item...", items=[key])
-secret_garden = MapLocation(concealed="?", revealed="&nbsp;", description="", item_description="After the ornate gate slowly creaks open, you are able to see behind it a rose in a vase on a pedestal, and underneath it is a note addressed to you...", items=[rose, note])
+secret_garden = MapLocation(concealed="?", revealed="&nbsp;", description="", item_description="Behind an ornate gate you are able to make out the outline of what appears to be a pedestal...", items=[rose, note])
 start_location = MapLocation(concealed="@", revealed="&nbsp;", description="You see a garden in front of you, and a gravel path appears to beckon you further in...")
 cave_entrance = MapLocation(concealed="?", revealed="&nbsp;", description="In front of you is an ominous, looming cave. Stalactites hang from its foor and it appears to beckon you further inwards...")
 
@@ -133,7 +135,6 @@ def help():
         story.append(key_methods[i] + "<br>")
 
     return render_template("play.html", story=story)
-
 
 @app.route('/north')
 def north(): 
@@ -269,21 +270,25 @@ def new_room():
 @app.route('/grab')
 def grab(): 
     coords = locate_user()
-    if hasattr(map[coords[0]][coords[1]], "items") and not map[coords[0]][coords[1]].items: 
+    current_location = map[coords[0]][coords[1]]
+    if not current_location.items: 
         story.append("There is nothing to grab here.")
         return render_template("play.html", story=story)
     
     # items detected
     nothing_added = True
-    for i in range(len(map[coords[0]][coords[1]].items)): 
-        if map[coords[0]][coords[1]].items[i].restricted == False: 
-            inventory.append(map[coords[0]][coords[1]].items[i])
-            # unlock items
-            if len(map[coords[0]][coords[1]].items[i].unlocks) != 0: 
-                for j in range(len(map[coords[0]][coords[1]].items[i].unlocks)): 
-                    map[coords[0]][coords[1]].items[i].unlocks[j].restricted = False
-            story.append(f"Added to inventory: {map[coords[0]][coords[1]].items[i]}<br>")
+
+    for item in current_location.items: 
+        if not item.restricted and item not in inventory: 
+            inventory.append(item)
+            # unlock items (THIS WAS A BUG--grab should not unlock items)
+            # if len(map[coords[0]][coords[1]].items[i].unlocks) != 0: 
+                # for j in range(len(map[coords[0]][coords[1]].items[i].unlocks)): 
+                    # map[coords[0]][coords[1]].items[i].unlocks[j].restricted = False
+            story.append(item.revealed_text)
+            story.append(f"Added to inventory: {item}<br>")
             nothing_added = False
+        
     if nothing_added: 
         story.append("There is nothing you can grab here at the moment")
     return render_template("play.html", story=story)
@@ -292,14 +297,16 @@ def grab():
 @app.route('/use')
 def use(): 
     coords = locate_user()
+    already_used = False
     # I bet that this could be done more efficiently but I don't really want to rn :)
     for i in range(len(inventory)): 
         for j in range(len(inventory[i].unlocks)): 
             for k in range(len(map[coords[0]][coords[1]].items)): 
                 if map[coords[0]][coords[1]].items[k] == inventory[i].unlocks[j]: 
-                    story.append(f"Successfully used {inventory[i].name} to access {map[coords[0]][coords[1]].items[k].name}")
-                    inventory.append(map[coords[0]][coords[1]].items[k])
-                    story.append(f"Added to inventory: {map[coords[0]][coords[1]].items[k]}<br>")
+                    if not already_used: 
+                        story.append(f"Successfully used {inventory[i].name} to {inventory[i].action_description}")
+                        already_used = True
+                    inventory[i].unlocks[j].restricted = False
     return render_template("play.html", story=story)
 
 
