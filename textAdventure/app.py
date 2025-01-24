@@ -5,13 +5,14 @@ app = Flask(__name__, static_folder='static')
 import os
 
 class Item: 
-    def __init__(self, name, description, restricted, action_description=None, revealed_text=None, unlocks=None): 
+    def __init__(self, name, description, restricted, action_description=None, revealed_text=None, unlocks=None, used=False): 
         self.name = name
         self.description = description
         self.restricted = restricted
         self.revealed_text = revealed_text
         self.action_description = action_description
         self.unlocks = unlocks if unlocks else []
+        self.used = used
     
     def __repr__(self): 
         return f"{self.name}: {self.description}"
@@ -303,12 +304,16 @@ def use():
     # I bet that this could be done more efficiently but I don't really want to rn :)
     for i in range(len(inventory)): 
         for j in range(len(inventory[i].unlocks)): 
-            for k in range(len(map[coords[0]][coords[1]].items)): 
-                if map[coords[0]][coords[1]].items[k] == inventory[i].unlocks[j]: 
-                    if not already_used: 
+            items = map[coords[0]][coords[1]].items
+            for k in range(len(items)): 
+                if items[k] == inventory[i].unlocks[j]: 
+                    if not already_used and not inventory[i].used: 
                         story.append(f"Successfully used {inventory[i].name} to {inventory[i].action_description}")
                         already_used = True
+                        inventory[i].used = True
                     inventory[i].unlocks[j].restricted = False
+    if already_used == False: 
+        story.append("You cannot use that item here")
     return render_template("play.html", story=story)
 
 
