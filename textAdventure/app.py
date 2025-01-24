@@ -2,6 +2,8 @@ from flask import Flask, render_template, redirect, request
 
 app = Flask(__name__, static_folder='static')
 
+import os
+
 class Item: 
     def __init__(self, name, description, restricted, action_description=None, revealed_text=None, unlocks=None): 
         self.name = name
@@ -329,4 +331,6 @@ def clear():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # chatgpt code to get render (web application publishing service) to display my webpage by fixing the port number
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
