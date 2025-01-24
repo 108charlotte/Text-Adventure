@@ -9,46 +9,73 @@ import uuid
 app.secret_key = secrets.token_hex()
 
 class Item: 
-    def __init__(self, name, description, restricted, action_description=None, revealed_text=None, unlocks=None, used=False): 
+    def __init__(self, name, description, restricted, action=None, when_grabbed=None, when_revealed=None, hidden_description=None, environment_effect=None, unlocks=None, used=False): 
         self.name = name
         self.description = description
         self.restricted = restricted
-        self.revealed_text = revealed_text
-        self.action_description = action_description
+        self.when_grabbed = when_grabbed
+        # text to be displayed when the item is grabbed
+        self.when_revealed = when_revealed
+        # text to be displayed only for unlocked items
+        self.environment_effect = environment_effect
+        # used {item} to _______
+        self.action = action
+        # how used tells what to unlock when a certain item is used
         self.unlocks = unlocks if unlocks else []
+        self.hidden_description = hidden_description
+        # makes sure an item cannot be used to unlock already unlocked items
         self.used = used
     
-    def __repr__(self): 
-        return f"{self.name}: {self.description}"
+    def to_dict(self): 
+        unlocks = [item.to_dict() for item in self.unlocks]
+        return {'name': self.name, 
+                'description': self.description, 
+                'restricted': self.restricted, 
+                'when_revealed': self.when_revealed, 
+                'action': self.action, 
+                'environment_effect': self.environment_effect, 
+                'hidden_description': self.hidden_description, 
+                'unlocks': unlocks, 
+                'when_grabbed': self.when_grabbed, 
+                'used': self.used}
+
+    @staticmethod
+    def from_dict(data): 
+        unlocks_dicts = data['unlocks']
+        unlocks = [Item.from_dict(unlock) for unlock in unlocks_dicts]
+        return Item(name=data['name'], 
+                    description=data['description'], 
+                    restricted=data['restricted'], 
+                    when_revealed=data['when_revealed'], 
+                    environment_effect=data['environment_effect'], 
+                    action=data['action'], 
+                    when_grabbed=data['when_grabbed'], 
+                    hidden_description=data['hidden_description'], 
+                    unlocks=unlocks, used=data['used'])
 
 class MapLocation: 
-    def __init__(self, concealed, revealed, description=None, item_description=None, items=None): 
+    def __init__(self, concealed, revealed, description=None, items=None): 
         self.concealed = concealed
         self.revealed = revealed
-        self.description = description
-        self.item_description = item_description if item_description else ""
         self.items = items if items else []
+        self.description = description
     
-    def __repr__(self): 
-        return f"{self.concealed}, {self.revealed}"
+    def to_dict(self): 
+        items = [item.to_dict() for item in self.items if isinstance(item, Item)]
+        return {'concealed': self.concealed, 
+                'revealed': self.revealed, 
+                'description': self.description, 
+                'items': items}
 
-# create items
-rose = Item(name="Ageless Rose", description="A beautiful rose. Feels as though it will never wilt, no matter how long it is stuffed into your pocket", revealed_text="After the gate slowly creaks open, you are able to make out a vase resting atop the pedestal, and within it is a single rose. ", restricted=True)
-note = Item(name="Mysterious Note", description="You are amazing <3 always be you, even when things get stressful! -charlotte (creator)", revealed_text="Beneath the vase, there appears to be a short note addressed to you. ", restricted=True)
-key = Item(name="Rusted Key", description="An ancient, ornate key...maybe it can be used to unlock something?", action_description="unlock the garden gate. The pedestal stands before you, atop it the rose and the note", revealed_text="After carefully picking it up and brushing off a substantial amount of dirt, you are able to make out the outline of a rusted key", restricted=False, unlocks=[rose, note])
+    @staticmethod
+    def from_dict(data): 
+        item_dicts = data['items']
+        items = [Item.from_dict(item) for item in item_dicts]
+        return MapLocation(concealed=data['concealed'], 
+                           revealed=data['revealed'], 
+                           description=data['description'], 
+                           items=items)
 
-# create rooms
-garden_path = MapLocation(concealed="&nbsp;", revealed="&nbsp;", description="You see in front of you a mysterious wandering garden pathway lined with all sorts of plants and flowers. ", item_description="When you look down at the mossy pathway, you can only barely make out the edges of an old, rusted item...", items=[key])
-secret_garden = MapLocation(concealed="?", revealed="&nbsp;", description="", item_description="Behind an ornate gate you are able to make out the outline of what appears to be a pedestal...", items=[rose, note])
-start_location = MapLocation(concealed="@", revealed="&nbsp;", description="You see a garden in front of you, and a gravel path appears to beckon you further in...")
-cave_entrance = MapLocation(concealed="?", revealed="&nbsp;", description="In front of you is an ominous, looming cave. Stalactites hang from its foor and it appears to beckon you further inwards...")
-
-story = [
-    """Your journey begins...
-    <br><br>
-    <b>Press h for help with commands</b>
-    """, 
-]
 
 key_methods = [
     "H: display quick rundown of methods", 
@@ -59,46 +86,136 @@ key_methods = [
     "U: use",
     "N: inspect (allows you to view the descriptions of all current items in your inventory)"
 ]
-
-map = [
-    ['?', '?', '?', MapLocation(concealed="?", revealed="#"), MapLocation(concealed="?", revealed="#")], 
-    [MapLocation(concealed="?", revealed="#"), MapLocation(concealed="?", revealed="#"), '?', '?', MapLocation(concealed="?", revealed="#")], 
-    [secret_garden, MapLocation(concealed="?", revealed="#"), '?', MapLocation(concealed="?", revealed="#"), '?'], 
-    [garden_path, cave_entrance, '?', MapLocation(concealed="?", revealed="#"), '?'], 
-    [start_location, MapLocation(concealed="?", revealed="#"), '?', '?', '?']
-]
-
-inventory = []
-
-def locate_user(): 
-    coords = []
-    # find current location in map
-    for i in range(len(map)): 
-        for j in range(len(map[i])): 
-            if isinstance(map[i][j], MapLocation): 
-                if map[i][j].concealed == "@": 
-                    coords.append(i)
-                    coords.append(j)
-                    return coords
-
+                    
 # coords represent coordinates of current location
 def refresh_map(coords): 
+    world_map = session.get('world_map')
+
     # reveal tiles around new spot (concealed --> revealed)
-    for i in (coords[0] - 2, coords[0] - 1, coords[0], coords[0] + 1): 
-        for j in (coords[1] - 2, coords[1] - 1, coords[1], coords[1] + 1): 
+    for i in range(coords[0] - 1, coords[0] + 2): 
+        for j in range(coords[1] - 1, coords[1] + 2): 
             # ensures that the element attempting to be accessed is actually on the grid
             if i >= 0 and i < 5 and j >= 0 and j < 5: 
-                if isinstance(map[i][j], MapLocation): 
-                    map[i][j].concealed = map[i][j].revealed
+                if isinstance(world_map[i][j], dict): 
+                    world_map[i][j]['concealed'] = world_map[i][j]['revealed']
+    
+    if isinstance(world_map[coords[0]][coords[1]], dict): 
+        world_map[coords[0]][coords[1]]['concealed'] = "@"
+    
+    session['world_map'] = world_map
+    session.modified = True
 
 
-'''
+def reset_variables(): 
+    story = session.get('story', ["""Your journey begins...
+    <br><br>
+    <b>Press h for help with commands</b>
+    """])
+
+    items = create_items()
+
+    session['items'] = [items[0].to_dict(), items[1].to_dict(), items[2].to_dict()]
+
+    session['inventory'] = []
+
+    rooms = create_rooms(items[0], items[1], items[2])
+
+    story.append(rooms[2].description)
+
+    session['story'] = story
+
+    session['rooms'] = [MapLocation.to_dict(rooms[0]), MapLocation.to_dict(rooms[1]), MapLocation.to_dict(rooms[2]), MapLocation.to_dict(rooms[3])]
+
+    session['coords'] = [4, 0]
+
+    session['world_map'] = create_map(rooms[0], rooms[1], rooms[2], rooms[3])
+
+
+def create_items(): 
+    rose = Item(name="Ageless Rose", 
+                description="A beautiful rose. Feels as though it will never wilt, no matter how long it is stuffed into your pocket", 
+                when_revealed="After entering the gate, the pedestal stands before you. Atop it sits a singular rose in a vase. ", 
+                environment_effect="The rose remains in the vase on the pedestal. ", 
+                hidden_description="Behind the locked gate you are vaguely able to make out the edges of a pedestal with a strange vase resting atop it. ", 
+                when_grabbed="You reach out and gently pick up the rose. Since you don't have a backpack, you pocket it.", 
+                restricted=True)
+    note = Item(name="Mysterious Note", 
+                description="You are amazing <3 ! Thank you so much for playing my game -charlotte (creator)", 
+                when_revealed="Tucked carefully beneath the vase, there appears to be a short note addressed to you.<br>Although the overgrowth around you appears ancient, this note and the rose both appear quite fresh...<br>", 
+                environment_effect="The note addressed to you peeks out from beneath the vase", 
+                when_grabbed="You pick up the letter and gently open it, reading it before pocketing it. ", 
+                restricted=True)
+    key = Item(name="Rusted Key", 
+               description="An ancient, ornate key...maybe it can be used to unlock something?", 
+               action="unlock the garden gate. ", 
+               when_revealed="After carefully picking it up and brushing off a substantial amount of dirt, you are able to make out the outline of a rusted key", 
+               environment_effect="When you look down at the mossy pathway, you can only barely make out the edges of an old, rusted item. ", 
+               restricted=False, 
+               unlocks=[rose, note])
+    return [rose, note, key]
+
+
+def create_rooms(rose, note, key): 
+    garden_path = MapLocation(concealed="&nbsp;", 
+                              revealed="&nbsp;", 
+                              description="You see in front of you a mysterious wandering garden pathway lined with all sorts of plants and flowers. ", 
+                              items=[key])
+    secret_garden = MapLocation(concealed="?", 
+                                revealed="&nbsp;", 
+                                description="You find yourself at the center of an ancient, magical garden. Strange palm trees seem to lean towards you as you approach the center. ", 
+                                items=[rose, note])
+    start_location = MapLocation(concealed="@", 
+                                 revealed="&nbsp;", 
+                                 description="You see a garden in front of you, and a gravel path appears to beckon you further in...")
+    cave_entrance = MapLocation(concealed="?", 
+                                revealed="&nbsp;", 
+                                description="In front of you is an ominous, looming cave. Stalactites hang from its foor and it appears to beckon you further inwards...")
+    return [garden_path, secret_garden, start_location, cave_entrance]
+
+
+def create_map(garden_path, secret_garden, start_location, cave_entrance): 
+    return [
+            ['?', '?', '?', MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), MapLocation.to_dict(MapLocation(concealed="?", revealed="#"))], 
+            [MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?', '?', MapLocation.to_dict(MapLocation(concealed="?", revealed="#"))], 
+            [MapLocation.to_dict(secret_garden), MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?', MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?'], 
+            [MapLocation.to_dict(garden_path), MapLocation.to_dict(cave_entrance), '?', MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?'], 
+            [MapLocation.to_dict(start_location), MapLocation.to_dict(MapLocation(concealed="#", revealed="#")), '?', '?', '?']
+        ]
+
+def room_description(): 
+    items = create_items()
+    rooms = create_rooms(items[0], items[1], items[2])
+    no_world_map = create_map(rooms[0], rooms[1], rooms[2], rooms[3])
+
+    world_map = session.get('world_map', no_world_map)
+    
+    coords = session.get('coords', [4,0])
+    story = session.get('story', ["""Your journey begins...
+    <br><br>
+    <b>Press h for help with commands</b>
+    """])
+
+    current_room = MapLocation.from_dict(world_map[coords[0]][coords[1]])
+
+    story.append(current_room.description)
+
+    if current_room.items: 
+        for item in current_room.items: 
+            if not item.restricted and item.environment_effect: 
+                story.append(item.environment_effect)
+            elif item.restricted and item.hidden_description: 
+                story.append(item.hidden_description)
+
+    session['story'] = story
+
+
 @app.before_request
 def assign_user_id(): 
     if 'user_id' not in session: 
         session['user_id'] = str(uuid.uuid4())
-'''
-        
+        reset_variables()
+
+
 @app.route('/')
 def welcome():
     return render_template("welcome.html")
@@ -106,244 +223,242 @@ def welcome():
 
 @app.route('/play')
 def play(): 
-    if len(story) == 1 and story[0] == """Your journey begins...
-    <br><br>
-    <b>Press h for help with commands</b>
-    """: 
-        new_room()
+    story = session.get('story')
     return render_template("play.html", story=story)
 
 
 # routes from key presses (will be reused throughout story)
 @app.route('/display_map')
 def display_map(): 
+    story = session.get('story')
+    world_map = session.get('world_map')
     this_row = ""
-    for i in range(len(map)): 
-        for j in range(len(map[i])): 
-            if isinstance(map[i][j], MapLocation): 
-                this_row += map[i][j].concealed + "&nbsp;&nbsp;"
+
+    map_display = ""
+
+    for i in range(len(world_map)): 
+        for j in range(len(world_map[i])): 
+            if isinstance(world_map[i][j], dict): 
+                this_row += world_map[i][j]['concealed'] + "&nbsp;&nbsp;"
             else: 
-                this_row += map[i][j] + "&nbsp;&nbsp;"
-        story.append(this_row)
+                this_row += world_map[i][j] + "&nbsp;&nbsp;"
+        map_display += this_row + "<br>"
         this_row = ""
     
-    story.append("key: <br>@: current location<br>?: not yet discovered<br>#: wall<br>&nbsp;: open area/able to go through")
+    map_display += "key: <br>@: current location<br>?: not yet discovered<br>#: wall<br>&nbsp;: open area/able to go through"
 
-    return render_template("play.html", story=story)
+    story.append(map_display)
+
+    session['story'] = story
+
+    return redirect("/play")
 
 
 @app.route('/display_inventory')
 def display_inventory(): 
+    inventory = session.get('inventory', [])
+    story = session.get('story')
+
     if len(inventory) == 0: 
         story.append("Inventory is empty")
     else: 
-        story.append("Inventory: ")
-        for i in range(len(inventory)): 
-            story.append(inventory[i] + "<br>")
-        return render_template("play.html", story=story)
+        inventory_display = "Inventory: <br><ul>"
+        for item in inventory: 
+            if isinstance(item, dict): 
+                this_item = Item.from_dict(item)
+                inventory_display += f"<li>{this_item.name}</li>"
+        inventory_display += "</ul>"
+        story.append(inventory_display)
+    
+    session['story'] = story
+    return render_template("play.html", story=story)
 
 
 @app.route('/help')
 def help(): 
-    for i in range(len(key_methods)): 
-        story.append(key_methods[i] + "<br>")
+    story = session.get('story')
 
+    for method in key_methods: 
+        story.append(method + "<br>")
+
+    session['story'] = story
     return render_template("play.html", story=story)
+
+
+def move(hv): 
+    coords = session.get('coords', [4, 0])
+    story = session.get('story')
+    world_map = session.get('world_map')
+    
+    new_coords = [coords[0], coords[1]]
+
+    if hv == "N": 
+        new_coords[0] -= 1
+    elif hv == "S": 
+        new_coords[0] += 1
+    elif hv == "W": 
+        new_coords[1] -= 1
+    elif hv == "E": 
+        new_coords[1] += 1
+    
+    if not (0 <= new_coords[0] < 5 and 0 <= new_coords[1] < 5): 
+        story.append(f'You cannot move {hv} (out of map scope)')
+        session['story'] = story
+        return redirect("/play")
+    
+    new_location = world_map[new_coords[0]][new_coords[1]]
+
+    if not isinstance(new_location, dict): 
+        story.append("This part of the map has not yet been developed...wait for future releases to explore here!")
+        session['story'] = story
+        return redirect("/play")
+
+    if new_location['revealed'] == "#": 
+        story.append(f"You cannot move {hv} (blocked by wall: #)")
+        session['story'] = story
+        return redirect("/play")
+    
+    session['coords'] = new_coords
+    session.modified = True
+    world_map[new_coords[0]][new_coords[1]]['concealed'] = "@"
+    session['world_map'] = world_map
+    session['story'] = story
+    
+    session.modified = True
+
+    room_description()
+
+    refresh_map(new_coords)
+
+
 
 @app.route('/north')
 def north(): 
-    coords = locate_user()
-
-    if len(coords) == 0: 
-        story.clear()
-        story.append("I'M SO SORRY--there appears to have been an error locating your player. You are being placed back at the start space for now...")
-        map[4][0].concealed = "@"
-        coords = locate_user()
-
-    # check if north is blocked or out of scope
-    north_coord = coords[0]
-
-    if north_coord == 0: 
-        story.append("You cannot move north (out of map scope)")
-        return render_template("play.html", story=story)
-
-    if map[north_coord - 1][coords[1]].revealed == "#": 
-        story.append("You cannot move north (blocked by wall: #)")
-        return render_template("play.html", story=story)
-
-    refresh_map(coords)
-
-    # move @ to new concealed spot
-    map[north_coord - 1][coords[1]].concealed = "@"
-
-    new_room()
-
-    return redirect("/play", story=story)
+    move("N")
+    return redirect("/play")
 
 
 @app.route('/west')
 def west(): 
-    coords = locate_user()
-
-    if len(coords) == 0: 
-        story.clear()
-        story.append("I'M SO SORRY--there appears to have been an error locating your player. You are being placed back at the start space for now...")
-        map[4][0].concealed = "@"
-        coords = locate_user()
-
-    # check if west is blocked or out of scope
-    west_coord = coords[1]
-
-    if west_coord == 0: 
-        story.append("You cannot move west (out of map scope)")
-        return render_template("play.html", story=story)
-
-    if map[coords[0]][west_coord - 1].revealed == "#": 
-        story.append("You cannot move west (blocked by wall: #)")
-        return render_template("play.html", story=story)
-
-    refresh_map(coords)
-
-    # move @ to new concealed spot
-    map[coords[0]][west_coord - 1].concealed = "@"
-
-    new_room()
-
-    return redirect("/play", story=story)
+    move("W")
+    return redirect("/play")
 
 
 @app.route('/south')
 def south(): 
-    coords = locate_user()
-
-    if len(coords) == 0: 
-        story.clear()
-        story.append("I'M SO SORRY--there appears to have been an error locating your player. You are being placed back at the start space for now...")
-        map[4][0].concealed = "@"
-        coords = locate_user()
-
-    # check if south is blocked or out of scope
-    south_coord = coords[0]
-
-    if south_coord == 4: 
-        story.append("You cannot move south (out of map scope)")
-        return render_template("play.html", story=story)
-
-    if map[south_coord + 1][coords[1]].revealed == "#": 
-        story.append("You cannot move south (blocked by wall: #)")
-        return render_template("play.html", story=story)
-
-    refresh_map(coords)
-
-    # move @ to new concealed spot
-    map[south_coord + 1][coords[1]].concealed = "@"
-
-    new_room()
-
-    return redirect("/play", story=story)
+    move("S")
+    return redirect("/play")
 
 
 @app.route('/east')
 def east(): 
-    coords = locate_user()
-
-    if len(coords) == 0: 
-        story.clear()
-        story.append("I'M SO SORRY--there appears to have been an error locating your player. You are being placed back at the start space for now...")
-        map[4][0].concealed = "@"
-        coords = locate_user()
-
-    # check if east is blocked or out of scope
-    east_coord = coords[1]
-
-    if east_coord == 4: 
-        story.append("You cannot move east (out of map scope)")
-        return render_template("play.html", story=story)
-
-    if map[coords[0]][east_coord + 1].revealed == "#": 
-        story.append("You cannot move east (blocked by wall: #)")
-        return render_template("play.html", story=story)
-
-    refresh_map(coords)
-
-    # move @ to new concealed spot
-    map[coords[0]][east_coord + 1].concealed = "@"
-
-    new_room()
-
-    return redirect("/play", story=story)
-
-
-def new_room(): 
-    coords = locate_user()
-    story.append(map[coords[0]][coords[1]].description)
-    if map[coords[0]][coords[1]].items and any(item not in inventory for item in map[coords[0]][coords[1]].items): 
-        story.append(map[coords[0]][coords[1]].item_description)
+    move("E")
+    return redirect("/play")
 
 
 @app.route('/grab')
 def grab(): 
-    coords = locate_user()
-    current_location = map[coords[0]][coords[1]]
+    coords = session.get('coords')
+    world_map = session.get('world_map')
+    story = session.get('story')
+    inventory = session.get('inventory')
+
+    current_location = MapLocation.from_dict(world_map[coords[0]][coords[1]])
+
     if not current_location.items: 
         story.append("There is nothing to grab here.")
-        return render_template("play.html", story=story)
+        session['story'] = story
+        return redirect("/play")
     
     # items detected
     nothing_added = True
 
     for item in current_location.items: 
-        if not item.restricted and item not in inventory: 
-            inventory.append(item)
-            # unlock items (THIS WAS A BUG--grab should not unlock items)
-            # if len(map[coords[0]][coords[1]].items[i].unlocks) != 0: 
-                # for j in range(len(map[coords[0]][coords[1]].items[i].unlocks)): 
-                    # map[coords[0]][coords[1]].items[i].unlocks[j].restricted = False
-            story.append(item.revealed_text)
-            story.append(f"Added to inventory: {item}<br>")
+        if not item.restricted and item.to_dict() not in inventory: 
+            if isinstance(item, Item): 
+                inventory.append(item.to_dict())
+                current_location.items.remove(item)
+            if item.when_grabbed: 
+                story.append(item.when_grabbed)
+            story.append(f"Added to inventory: {item.name}: {item.description}<br>")
             nothing_added = False
-        
+    
+
     if nothing_added: 
         story.append("There is nothing you can grab here at the moment")
-    return render_template("play.html", story=story)
+    
+    world_map[coords[0]][coords[1]] = current_location.to_dict()
+
+    session['world_map'] = world_map
+    session['story'] = story
+    session['inventory'] = inventory
+
+    return redirect("/play")
 
 
 @app.route('/use')
 def use(): 
-    coords = locate_user()
-    already_used = False
+    coords = session.get('coords')
+    inventory = session.get('inventory')
+    story = session.get('story')
+    world_map = session.get('world_map')
+
+    current_location = MapLocation.from_dict(world_map[coords[0]][coords[1]])
+
     # I bet that this could be done more efficiently but I don't really want to rn :)
-    for i in range(len(inventory)): 
-        for j in range(len(inventory[i].unlocks)): 
-            items = map[coords[0]][coords[1]].items
-            for k in range(len(items)): 
-                if items[k] == inventory[i].unlocks[j]: 
-                    if not already_used and not inventory[i].used: 
-                        story.append(f"Successfully used {inventory[i].name} to {inventory[i].action_description}")
+    already_used = False
+
+    for item in inventory: 
+
+        for unlock in item['unlocks']: 
+
+            for items_in_room in current_location.items: 
+
+                if items_in_room.to_dict() == unlock: 
+                    if not already_used and not item['used']: 
+                        story.append(f"Successfully used {item['name']} to {item['action']}")
                         already_used = True
-                        inventory[i].used = True
-                    inventory[i].unlocks[j].restricted = False
-    if already_used == False: 
+                        item['used'] = True
+                    items_in_room.restricted = False
+                    world_map[coords[0]][coords[1]] = current_location.to_dict()
+                    story.append(items_in_room.when_revealed)
+
+    if not already_used: 
         story.append("You cannot use that item here")
+    
+    session['world_map'] = world_map
+    session['story'] = story
+
     return render_template("play.html", story=story)
 
 
 @app.route('/inspect')
 def inspect(): 
+    inventory = session.get('inventory', [])
+    story = session.get('story')
+
     if len(inventory) == 0: 
         story.append("You do not have any items in your inventory")
-        return redirect("/play")
+        return render_template("play.html", story=story)
+    
     story.append("Here are your items: ")
-    for i in range(len(inventory)): 
-        story.append(inventory[i])
-    return redirect("/play")
+    for item in inventory: 
+        item_object = Item.from_dict(item)
+        story.append(item_object.name)
+        item.to_dict()
+    
+    session['story'] = story
+
+    return render_template("play.html", story=story)
 
 
 @app.route('/clear')
 def clear(): 
+    story = session['story']
     story.clear()
     story.append("Workspace cleared.")
-    return render_template("play.html", story=story)
+    session['story'] = story
+    return redirect("/play")
 
 
 if __name__ == '__main__':
