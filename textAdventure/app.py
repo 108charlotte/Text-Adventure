@@ -166,7 +166,7 @@ def north():
 
     new_room()
 
-    return display_map()
+    return redirect("/play", story=story)
 
 
 @app.route('/west')
@@ -197,7 +197,7 @@ def west():
 
     new_room()
 
-    return display_map()
+    return redirect("/play", story=story)
 
 
 @app.route('/south')
@@ -228,7 +228,7 @@ def south():
 
     new_room()
 
-    return display_map()
+    return redirect("/play", story=story)
 
 
 @app.route('/east')
@@ -259,7 +259,7 @@ def east():
 
     new_room()
 
-    return display_map()
+    return redirect("/play", story=story)
 
 
 def new_room(): 
