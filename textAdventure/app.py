@@ -1,8 +1,12 @@
-from flask import Flask, render_template, redirect, request
+from flask import Flask, render_template, redirect, request, session
 
 app = Flask(__name__, static_folder='static')
 
+import secrets
 import os
+import uuid
+
+app.secret_key = secrets.token_hex()
 
 class Item: 
     def __init__(self, name, description, restricted, action_description=None, revealed_text=None, unlocks=None, used=False): 
@@ -88,6 +92,13 @@ def refresh_map(coords):
                     map[i][j].concealed = map[i][j].revealed
 
 
+'''
+@app.before_request
+def assign_user_id(): 
+    if 'user_id' not in session: 
+        session['user_id'] = str(uuid.uuid4())
+'''
+        
 @app.route('/')
 def welcome():
     return render_template("welcome.html")
