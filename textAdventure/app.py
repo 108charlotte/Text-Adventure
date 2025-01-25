@@ -388,7 +388,7 @@ def grab():
     if not current_location.items: 
         story.append("There is nothing to grab here.")
         session['story'] = story
-        return redirect("/play")
+        return render_template("play.html", story=story)
     
     # items detected
     nothing_added = True
