@@ -458,7 +458,7 @@ def use():
 
 @app.route('/inspect')
 def inspect(): 
-    inventory = session.get('inventory', [])
+    inventory = session.get('inventory')
     story = session.get('story')
 
     if len(inventory) == 0: 
@@ -467,9 +467,12 @@ def inspect():
         session.modified = True
         return render_template("play.html", story=story)
     
-    story.append("Here are your items: ")
+    text = ""
+    text += "Here are your items: "
     for item in inventory: 
-        story.append(f"{item['name']}: {item['description']}")
+        text += f"{item['name']}: {item['description']}<br>"
+    
+    story.append(text)
     
     session['story'] = story
 
