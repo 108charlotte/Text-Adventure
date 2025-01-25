@@ -324,19 +324,22 @@ def move(hv):
     if not (0 <= new_coords[0] < 5 and 0 <= new_coords[1] < 5): 
         story.append(f'You cannot move {hv} (out of map scope)')
         session['story'] = story
-        return redirect("/play")
+        session.modified = True
+        return render_template("play.html", story=story)
     
     new_location = world_map[new_coords[0]][new_coords[1]]
 
     if not isinstance(new_location, dict): 
         story.append("This part of the map has not yet been developed...wait for future releases to explore here!")
         session['story'] = story
-        return redirect("/play")
+        session.modified = True
+        return render_template("play.html", story=story)
 
     if new_location['revealed'] == "#": 
         story.append(f"You cannot move {hv} (blocked by wall: #)")
         session['story'] = story
-        return redirect("/play")
+        session.modified = True
+        return render_template("play.html", story=story)
     
     session['coords'] = new_coords
     session.modified = True
@@ -460,6 +463,8 @@ def inspect():
 
     if len(inventory) == 0: 
         story.append("You do not have any items in your inventory")
+        session['story'] = story
+        session.modified = True
         return render_template("play.html", story=story)
     
     story.append("Here are your items: ")
