@@ -41,7 +41,9 @@
                 return response.text(); // Optional: Get server response if needed.
             })
             .then(() => {
-                location.reload(); // Reload the page only after the request is successful.
+                setTimeout(() => {
+                    location.reload(); 
+                })
             })
             .catch(error => {
                 console.error('Error:', error);
