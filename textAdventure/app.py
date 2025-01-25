@@ -263,6 +263,8 @@ def display_map():
 
     session['story'] = story
 
+    session.modified = True
+
     return redirect("/play")
 
 
@@ -283,6 +285,9 @@ def display_inventory():
         story.append(inventory_display)
     
     session['story'] = story
+
+    session.modified = True
+
     return render_template("play.html", story=story)
 
 
@@ -294,6 +299,9 @@ def help():
         story.append(method + "<br>")
 
     session['story'] = story
+
+    session.modified = True
+
     return render_template("play.html", story=story)
 
 
@@ -342,30 +350,27 @@ def move(hv):
 
     refresh_map(new_coords)
 
+    return render_template("play.html", story=story)
 
 
 @app.route('/north')
 def north(): 
-    move("N")
-    return redirect("/play")
+    return move("N")
 
 
 @app.route('/west')
 def west(): 
-    move("W")
-    return redirect("/play")
+    return move("W")
 
 
 @app.route('/south')
 def south(): 
-    move("S")
-    return redirect("/play")
+    return move("S")
 
 
 @app.route('/east')
 def east(): 
-    move("E")
-    return redirect("/play")
+    return move("E")
 
 
 @app.route('/grab')
@@ -405,7 +410,9 @@ def grab():
     session['story'] = story
     session['inventory'] = inventory
 
-    return redirect("/play")
+    session.modified = True
+
+    return render_template("play.html", story=story)
 
 
 @app.route('/use')
@@ -441,6 +448,8 @@ def use():
     session['world_map'] = world_map
     session['story'] = story
 
+    session.modified = True
+
     return render_template("play.html", story=story)
 
 
@@ -461,6 +470,8 @@ def inspect():
     
     session['story'] = story
 
+    session.modified = True
+
     return render_template("play.html", story=story)
 
 
@@ -470,7 +481,10 @@ def clear():
     story.clear()
     story.append("Workspace cleared.")
     session['story'] = story
-    return redirect("/play")
+
+    session.modified = True
+
+    return render_template("play.html", story=story)
 
 
 if __name__ == '__main__':

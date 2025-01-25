@@ -18,96 +18,37 @@
     }; 
 
     document.addEventListener('keydown', function(event) {
-        if (event.key === "m") {
-            fetch('/display_map', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
+        let url = null;
+
+    if (event.key === "m") url = '/display_map';
+    else if (event.key === "i") url = '/display_inventory';
+    else if (event.key === "h") url = '/help';
+    else if (event.key === "g") url = '/grab';
+    else if (event.key === "w") url = '/north';
+    else if (event.key === "a") url = '/west';
+    else if (event.key === "s") url = '/south';
+    else if (event.key === "d") url = '/east';
+    else if (event.key === "u") url = '/use';
+    else if (event.key === "n") url = '/inspect';
+    else if (event.key === "c") url = '/clear';
+
+    if (url) {
+        fetch(url, { method: 'GET' })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text(); // Optional: Get server response if needed.
             })
-        } else if (event.key === "i") {
-            fetch('/display_inventory', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
+            .then(() => {
+                location.reload(); // Reload the page only after the request is successful.
             })
-        } else if (event.key === "h") {
-            fetch('/help', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
-            })
-        } else if (event.key === "g") {
-            fetch('/grab', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
-            })
-        } else if (event.key === "w") {
-            fetch('/north', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
-            })
-        } else if (event.key === "a") {
-            fetch('/west', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
-            })
-        } else if (event.key === "s") {
-            fetch('/south', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
-            })
-        } else if (event.key === "d") {
-            fetch('/east', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
-            })
-        } else if (event.key === "u") {
-            fetch('/use', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
-            })
-        } else if (event.key === "n") {
-            fetch('/inspect', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
-            })
-        } else if (event.key === "c") {
-            fetch('/clear', {
-                method: 'GET', 
-            }).then(function(response) {
-                location.reload(); 
-            }).catch(function(error) {
-                console.log('Error:', error)
-            })
-        }
-    })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.'); // Optional: Display an error message.
+            });
+    }
+}); 
 </script>
 
 {% endblock %}
