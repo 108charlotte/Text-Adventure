@@ -468,12 +468,12 @@ def inspect():
         return render_template("play.html", story=story)
     
     text = ""
-    text += "Here are your items: "
+    text += "Here are your items: <br>"
     for item in inventory: 
-        text += f"{item['name']}: {item['description']}<br>"
+        text += f"&nbsp;&nbsp;{item['name']}: {item['description']}<br>"
     
     story.append(text)
-    
+
     session['story'] = story
 
     session.modified = True
