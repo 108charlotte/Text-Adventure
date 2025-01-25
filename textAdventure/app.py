@@ -248,12 +248,12 @@ def display_map():
 
     map_display = ""
 
-    for i in range(len(world_map)): 
-        for j in range(len(world_map[i])): 
-            if isinstance(world_map[i][j], dict): 
-                this_row += world_map[i][j]['concealed'] + "&nbsp;&nbsp;"
+    for row in world_map: 
+        for cell in row: 
+            if isinstance(cell, dict): 
+                this_row += cell['concealed'] + "&nbsp;&nbsp;"
             else: 
-                this_row += world_map[i][j] + "&nbsp;&nbsp;"
+                this_row += cell + "&nbsp;&nbsp;"
         map_display += this_row + "<br>"
         this_row = ""
     
@@ -265,7 +265,7 @@ def display_map():
 
     session.modified = True
 
-    return redirect("/play")
+    return render_template("play.html", story=story)
 
 
 @app.route('/display_inventory')
@@ -464,7 +464,7 @@ def inspect():
     
     story.append("Here are your items: ")
     for item in inventory: 
-        story.append(item['name'])
+        story.append(f"{item['name']}: {item['description']}")
     
     session['story'] = story
 
