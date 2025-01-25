@@ -107,29 +107,37 @@ def refresh_map(coords):
 
 
 def reset_variables(): 
-    story = session.get('story', ["""Your journey begins...
+    story = ["""Your journey begins...
     <br><br>
     <b>Press h for help with commands</b>
-    """])
+    """]
 
     items = create_items()
 
-    session['items'] = [items[0].to_dict(), items[1].to_dict(), items[2].to_dict()]
-
-    session['inventory'] = []
-
     rooms = create_rooms(items[0], items[1], items[2])
 
-    story.append(rooms[2].description)
+    world_map = create_map(rooms[0], rooms[1], rooms[2], rooms[3])
 
-    session['story'] = story
+    with app.app_context(): 
+        session['items'] = [items[0].to_dict(), items[1].to_dict(), items[2].to_dict()]
 
-    session['rooms'] = [MapLocation.to_dict(rooms[0]), MapLocation.to_dict(rooms[1]), MapLocation.to_dict(rooms[2]), MapLocation.to_dict(rooms[3])]
+        session['inventory'] = []
 
-    session['coords'] = [4, 0]
+        story.append(rooms[2].description)
 
-    session['world_map'] = create_map(rooms[0], rooms[1], rooms[2], rooms[3])
+        session['story'] = story
 
+        session['rooms'] = [MapLocation.to_dict(rooms[0]), MapLocation.to_dict(rooms[1]), MapLocation.to_dict(rooms[2]), MapLocation.to_dict(rooms[3])]
+
+        session['coords'] = [4, 0]
+
+        session['world_map'] = world_map
+
+        session.modified = True
+
+        session['variables_reset'] = True
+
+        return render_template("play.html", story=story)
 
 def create_items(): 
     rose = Item(name="Ageless Rose", 
@@ -208,18 +216,22 @@ def room_description():
 
     session['story'] = story
 
-
 @app.before_request
 def assign_user_id(): 
     if 'user_id' not in session: 
         session['user_id'] = str(uuid.uuid4())
-        reset_variables()
-
 
 @app.route('/')
 def welcome():
     return render_template("welcome.html")
 
+@app.route('/loading', methods=["GET", "POST"])
+def loading(): 
+    if request.method == "GET": 
+        render_template("loading.html")
+        while not session.get('variables_reset'): 
+            reset_variables()
+        return redirect("/play")
 
 @app.route('/play')
 def play(): 

@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+
+{% block body %}
+<div class="loader">Please wait while we set things up</div>
+<script>
+    window.onload = function() {
+    // Simulate loading process
+    setTimeout(function() {
+        document.getElementById("loading-screen").style.display = "none";
+        document.getElementById("content").style.display = "block";
+    }, 3000); // Adjust time to simulate the loading process
+};
+</script>
+{% endblock %}
