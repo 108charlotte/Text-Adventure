@@ -38,12 +38,12 @@
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                return response.text(); // Optional: Get server response if needed.
+                return response.text(); 
             })
             .then(() => {
                 setTimeout(() => {
                     location.reload(); 
-                })
+                }, 100); 
             })
             .catch(error => {
                 console.error('Error:', error);

@@ -464,9 +464,7 @@ def inspect():
     
     story.append("Here are your items: ")
     for item in inventory: 
-        item_object = Item.from_dict(item)
-        story.append(item_object.name)
-        item.to_dict()
+        story.append(item['name'])
     
     session['story'] = story
 
