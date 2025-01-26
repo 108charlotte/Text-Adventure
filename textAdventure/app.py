@@ -9,7 +9,7 @@ import uuid
 app.secret_key = secrets.token_hex()
 
 class Item: 
-    def __init__(self, name, description, restricted, action=None, when_grabbed=None, when_revealed=None, hidden_description=None, environment_effect=None, unlocks=None, used=False): 
+    def __init__(self, name, description, restricted, action=None, when_used=None, when_grabbed=None, when_revealed=None, hidden_description=None, environment_effect=None, unlocks=None, used=False): 
         self.name = name
         self.description = description
         self.restricted = restricted
@@ -24,8 +24,20 @@ class Item:
         self.unlocks = unlocks if unlocks else []
         self.hidden_description = hidden_description
         # makes sure an item cannot be used to unlock already unlocked items
-        self.used = used
+        self._used = used
+        self.when_used = when_used
     
+    @property
+    def is_used(self): 
+        return self._used
+    
+    @is_used.setter
+    def is_used(self, value): 
+        if value and not self._used and self.when_used: 
+            if self.when_used == 'driftwood_to_torch': 
+                driftwood_to_torch()
+        self._used = value
+
     def to_dict(self): 
         unlocks = [item.to_dict() for item in self.unlocks]
         return {'name': self.name, 
@@ -37,7 +49,8 @@ class Item:
                 'hidden_description': self.hidden_description, 
                 'unlocks': unlocks, 
                 'when_grabbed': self.when_grabbed, 
-                'used': self.used}
+                '_used': self._used, 
+                'when_used': self.when_used}
 
     @staticmethod
     def from_dict(data): 
@@ -51,7 +64,8 @@ class Item:
                     action=data['action'], 
                     when_grabbed=data['when_grabbed'], 
                     hidden_description=data['hidden_description'], 
-                    unlocks=unlocks, used=data['used'])
+                    unlocks=unlocks, used=data['_used'], 
+                    when_used=data['when_used'])
 
 class MapLocation: 
     def __init__(self, concealed, revealed, description=None, items=None): 
@@ -114,20 +128,20 @@ def reset_variables():
 
     items = create_items()
 
-    rooms = create_rooms(items[0], items[1], items[2])
+    rooms = create_rooms(items[0], items[1], items[2], items[3], items[4])
 
-    world_map = create_map(rooms[0], rooms[1], rooms[2], rooms[3])
+    world_map = create_map(rooms[0], rooms[1], rooms[2], rooms[3], rooms[4])
 
     with app.app_context(): 
-        session['items'] = [items[0].to_dict(), items[1].to_dict(), items[2].to_dict()]
+        session['items'] = [items[0].to_dict(), items[1].to_dict(), items[2].to_dict(), items[3].to_dict(), items[4].to_dict()]
 
         session['inventory'] = []
 
-        story.append(rooms[2].description)
+        story.append(rooms[2]['description'])
 
         session['story'] = story
 
-        session['rooms'] = [MapLocation.to_dict(rooms[0]), MapLocation.to_dict(rooms[1]), MapLocation.to_dict(rooms[2]), MapLocation.to_dict(rooms[3])]
+        session['rooms'] = rooms
 
         session['coords'] = [4, 0]
 
@@ -138,6 +152,26 @@ def reset_variables():
         session['variables_reset'] = True
 
         return render_template("play.html", story=story)
+
+
+def driftwood_to_torch(): 
+        items = session.get('items')
+        if items: 
+            driftwood=items[4]
+            driftwood['name']="Torch"
+            driftwood['when_grabbed']="You have now created a small torch. "
+            driftwood['description']="A makeshift torch consisting of a small piece of driftwood, lit using a matchbox. "
+            inventory = session.get('inventory')
+            inventory.append(driftwood)
+            session['items'][4] = driftwood
+            first_room_cave=session.get('rooms')[4]
+            first_room_cave['description']="With light from the torch you are able to make out your surroundings. On the opposite end of the cave is a strange altar with an engraving of a flower on top of it. "
+            first_room_cave['items'] = []
+            session['rooms'][4] = first_room_cave
+            session['inventory'] = inventory
+            session['world_map'][3][2] = first_room_cave
+            session.modified = True
+            room_description()
 
 def create_items(): 
     rose = Item(name="Ageless Rose", 
@@ -156,14 +190,31 @@ def create_items():
     key = Item(name="Rusted Key", 
                description="An ancient, ornate key...maybe it can be used to unlock something?", 
                action="unlock the garden gate. ", 
-               when_revealed="After carefully picking it up and brushing off a substantial amount of dirt, you are able to make out the outline of a rusted key", 
+               when_grabbed="After carefully picking it up and brushing off a substantial amount of dirt, you are able to make out the outline of a rusted key", 
                environment_effect="When you look down at the mossy pathway, you can only barely make out the edges of an old, rusted item. ", 
                restricted=False, 
                unlocks=[rose, note])
-    return [rose, note, key]
+
+    driftwood = Item(name="Driftwood", 
+                     description="After lighting the driftwood, you are now mysteriously able to lift it", 
+                     hidden_description="Although you are barely able to make out anything in the pitch-black of the cave, you can see the edge of what appears to be a piece of wood...<br>Mysteriously, you are unable to lift it", 
+                     restricted=True
+                     )
+    
+    matchbox = Item(name="Matchbox", 
+                 description="A mysterious matchbox you found at the cave entrance. I wonder how it got here...", 
+                 action ="light the driftwood. ", 
+                 when_grabbed="After checking around to make sure its owner isn't nearby, you pocket the matchbox. ", 
+                 environment_effect="There appears to be a small matchbox resting atop a small outcropping of boulders. ", 
+                 restricted=False, 
+                 unlocks=[driftwood], 
+                 when_used="driftwood_to_torch", 
+                 )
+
+    return [rose, note, key, matchbox, driftwood]
 
 
-def create_rooms(rose, note, key): 
+def create_rooms(rose, note, key, matchbox, driftwood): 
     garden_path = MapLocation(concealed="&nbsp;", 
                               revealed="&nbsp;", 
                               description="You see in front of you a mysterious wandering garden pathway lined with all sorts of plants and flowers. ", 
@@ -177,25 +228,26 @@ def create_rooms(rose, note, key):
                                  description="You see a garden in front of you, and a gravel path appears to beckon you further in...")
     cave_entrance = MapLocation(concealed="?", 
                                 revealed="&nbsp;", 
-                                description="In front of you is an ominous, looming cave. Stalactites hang from its foor and it appears to beckon you further inwards...")
-    return [garden_path, secret_garden, start_location, cave_entrance]
+                                description="In front of you is an ominous, looming cave. Stalactites hang from its foor and it appears to beckon you further inwards...", 
+                                items=[matchbox])
+    first_room_cave = MapLocation(concealed="?", 
+                                  revealed="&nbsp;", 
+                                  description="After entering the cave you are barely able to make out your surroundings. ", 
+                                  items=[driftwood])
+    return [garden_path.to_dict(), secret_garden.to_dict(), start_location.to_dict(), cave_entrance.to_dict(), first_room_cave.to_dict()]
 
 
-def create_map(garden_path, secret_garden, start_location, cave_entrance): 
+def create_map(garden_path, secret_garden, start_location, cave_entrance, first_room_cave): 
     return [
             ['?', '?', '?', MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), MapLocation.to_dict(MapLocation(concealed="?", revealed="#"))], 
             [MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?', '?', MapLocation.to_dict(MapLocation(concealed="?", revealed="#"))], 
-            [MapLocation.to_dict(secret_garden), MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?', MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?'], 
-            [MapLocation.to_dict(garden_path), MapLocation.to_dict(cave_entrance), '?', MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?'], 
-            [MapLocation.to_dict(start_location), MapLocation.to_dict(MapLocation(concealed="#", revealed="#")), '?', '?', '?']
+            [secret_garden, MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?', MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?'], 
+            [garden_path, cave_entrance, first_room_cave, MapLocation.to_dict(MapLocation(concealed="?", revealed="#")), '?'], 
+            [start_location, MapLocation.to_dict(MapLocation(concealed="#", revealed="#")), '?', '?', '?']
         ]
 
 def room_description(): 
-    items = create_items()
-    rooms = create_rooms(items[0], items[1], items[2])
-    no_world_map = create_map(rooms[0], rooms[1], rooms[2], rooms[3])
-
-    world_map = session.get('world_map', no_world_map)
+    world_map = session.get('world_map')
     
     coords = session.get('coords', [4,0])
     story = session.get('story', ["""Your journey begins...
@@ -434,16 +486,25 @@ def use():
 
         for unlock in item['unlocks']: 
 
-            for items_in_room in current_location.items: 
+            for i in range(len(current_location.items)): 
 
-                if items_in_room.to_dict() == unlock: 
-                    if not already_used and not item['used']: 
+                if current_location.items[i].to_dict() == unlock: 
+                    if not already_used and not item['_used']: 
                         story.append(f"Successfully used {item['name']} to {item['action']}")
                         already_used = True
-                        item['used'] = True
-                    items_in_room.restricted = False
+                    item = Item.from_dict(item)
+                    item.is_used = True
+                    if item.when_used: 
+                        inventory=session.get('inventory')
+                        story=session.get('story')
+                        world_map=session.get('world_map')
+                        current_location = MapLocation.from_dict(world_map[coords[0]][coords[1]])
+                    if current_location.items and i < len(current_location.items): 
+                        if isinstance(current_location.items[i], Item): 
+                            current_location.items[i].restricted = False
+                            if current_location.items[i].when_revealed: 
+                                story.append(current_location.items[i].when_revealed)
                     world_map[coords[0]][coords[1]] = current_location.to_dict()
-                    story.append(items_in_room.when_revealed)
 
     if not already_used: 
         story.append("You cannot use that item here")
