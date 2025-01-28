@@ -277,16 +277,10 @@ def assign_user_id():
 def welcome():
     return render_template("welcome.html")
 
-@app.route('/loading', methods=["GET", "POST"])
-def loading(): 
-    if request.method == "GET": 
-        render_template("loading.html")
-        while not session.get('variables_reset'): 
-            reset_variables()
-        return redirect("/play")
-
 @app.route('/play')
 def play(): 
+    while not session.get('variables_reset'): 
+        reset_variables()
     story = session.get('story')
     return render_template("play.html", story=story)
 
